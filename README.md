@@ -49,16 +49,14 @@ DKMS, just like the official installer.
 
 ## Secure Boot
 
-This installer is not compatible with Secure Boot. The `synosnap` DKMS module
-is not signed with a trusted key, so the kernel will refuse to load it on
-systems with Secure Boot enabled.
+Secure Boot requires enrolling a Machine Owner Key (MOK) before installation.
+See **[SECURE_BOOT.md](SECURE_BOOT.md)** for instructions — note that this is
+currently **experimental** and not widely tested.
 
-**You must disable Secure Boot** in your firmware (UEFI) settings before
-installing, or enroll your own MOK key and sign the module manually after
-building.
-
-If you install with Secure Boot active, the module will build successfully but
-fail to load, and backups will not run.
+If you prefer not to set up MOK signing, disable Secure Boot in your firmware
+(UEFI) settings before installing. If you install with Secure Boot active
+without enrolling a key, the module will build successfully but fail to load,
+and backups will not run.
 
 Running a kernel not listed here? Please
 [open an issue](https://github.com/Peppershade/abb-linux-agent/issues)
