@@ -1,0 +1,140 @@
+name: Check Axcient upstream
+
+# Runs every Monday at 09:00 UTC and can be triggered manually.
+# Fetches the latest state of Axcient/elastio-snap (develop branch),
+# compares it with the synosnap sources in this repo, and updates
+# UPSTREAM_STATUS.md with the findings.
+
+on:
+  push:
+    branches: [master, upstream-tracking]
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch Axcient upstream state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          AUTH="-H 'Authorization: Bearer $GH_TOKEN'"
+
+          curl -sf \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/Axcient/elastio-snap/commits?sha=develop&per_page=50" \
+            -o /tmp/axcient_commits.json
+
+          curl -sf \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/Axcient/elastio-snap/contents/src/configure-tests/feature-tests?ref=develop" \
+            -o /tmp/axcient_tests.json
+
+          AXCIENT_SHA=$(jq -r '.[0].sha' /tmp/axcient_commits.json | cut -c1-8)
+          AXCIENT_DATE=$(jq -r '.[0].commit.committer.date' /tmp/axcient_commits.json | cut -c1-10)
+          AXCIENT_MSG=$(jq -r '.[0].commit.message' /tmp/axcient_commits.json | head -1)
+
+          AXCIENT_KERNEL=$(jq -r '.[].commit.message' /tmp/axcient_commits.json \
+            | grep -oP '(?i)(kernel[^0-9]*|v)\K6\.[0-9]+' \
+            | sort -V | tail -1)
+
+          AXCIENT_TESTS=$(jq -r '.[].name' /tmp/axcient_tests.json | grep '\.c$' | sort)
+          SYNOSNAP_TESTS=$(ls build-tools/patches/synosnap/configure-tests/feature-tests/*.c \
+            | xargs -I{} basename {} | sort)
+
+          NEW_IN_AXCIENT=$(comm -23 <(echo "$AXCIENT_TESTS") <(echo "$SYNOSNAP_TESTS") \
+            | paste -sd ',' | sed 's/,/, /g')
+          ONLY_IN_SYNOSNAP=$(comm -13 <(echo "$AXCIENT_TESTS") <(echo "$SYNOSNAP_TESTS") \
+            | paste -sd ',' | sed 's/,/, /g')
+
+          AXCIENT_COUNT=$(echo "$AXCIENT_TESTS" | wc -l | tr -d ' ')
+          SYNOSNAP_COUNT=$(echo "$SYNOSNAP_TESTS" | wc -l | tr -d ' ')
+
+          echo "AXCIENT_SHA=$AXCIENT_SHA"                          >> "$GITHUB_ENV"
+          echo "AXCIENT_DATE=$AXCIENT_DATE"                        >> "$GITHUB_ENV"
+          echo "AXCIENT_MSG=$AXCIENT_MSG"                          >> "$GITHUB_ENV"
+          echo "AXCIENT_KERNEL=${AXCIENT_KERNEL:-unknown}"         >> "$GITHUB_ENV"
+          echo "AXCIENT_COUNT=$AXCIENT_COUNT"                      >> "$GITHUB_ENV"
+          echo "SYNOSNAP_COUNT=$SYNOSNAP_COUNT"                    >> "$GITHUB_ENV"
+          echo "NEW_IN_AXCIENT=${NEW_IN_AXCIENT:-none}"            >> "$GITHUB_ENV"
+          echo "ONLY_IN_SYNOSNAP=${ONLY_IN_SYNOSNAP:-none}"        >> "$GITHUB_ENV"
+
+      - name: Read current synosnap version
+        run: |
+          VER=$(grep 'DATTOBD_VERSION=' build-tools/patches/variables.sh | cut -d'"' -f2)
+          echo "SYNOSNAP_VERSION=$VER" >> "$GITHUB_ENV"
+
+      - name: Update UPSTREAM_STATUS.md
+        run: |
+          CHECK_DATE=$(date -u '+%Y-%m-%d')
+          python3 - <<PYEOF
+          import os
+
+          axcient_sha     = os.environ['AXCIENT_SHA']
+          axcient_date    = os.environ['AXCIENT_DATE']
+          axcient_msg     = os.environ['AXCIENT_MSG']
+          axcient_kernel  = os.environ['AXCIENT_KERNEL']
+          axcient_count   = os.environ['AXCIENT_COUNT']
+          synosnap_ver    = os.environ['SYNOSNAP_VERSION']
+          synosnap_count  = os.environ['SYNOSNAP_COUNT']
+          new_in_axcient  = os.environ['NEW_IN_AXCIENT']
+          only_in_snap    = os.environ['ONLY_IN_SYNOSNAP']
+          check_date      = os.environ.get('CHECK_DATE', '$CHECK_DATE')
+
+          lines = [
+              '# Axcient Upstream Status',
+              '',
+              f'> Auto-updated every Monday by [check-upstream.yml](.github/workflows/check-upstream.yml).  ',
+              f'> Last checked: **{check_date}**',
+              '',
+              '## Current state',
+              '',
+              '| | Version / commit | Latest kernel in recent commits |',
+              '|---|---|---|',
+              f'| **Axcient** (`elastio-snap` develop) | `{axcient_sha}` ({axcient_date}) | **{axcient_kernel}** |',
+              f'| **Synology** (`synosnap` in this repo) | `{synosnap_ver}` | see [README](README.md) |',
+              '',
+              f'**Latest Axcient commit:** {axcient_msg}',
+              '',
+              '## Feature test coverage',
+              '',
+              '| | Count |',
+              '|---|---|',
+              f'| Axcient feature tests | {axcient_count} |',
+              f'| synosnap feature tests | {synosnap_count} |',
+              '',
+              '**In Axcient, not in synosnap** (potential gaps):',
+              f'`{new_in_axcient}`',
+              '',
+              '**In synosnap only** (our additions + Synology-specific):',
+              f'`{only_in_snap}`',
+              '',
+              '---',
+              '',
+              '*See [UPSTREAM.md](UPSTREAM.md) for context on the Axcient / Synology relationship.*',
+          ]
+
+          with open('UPSTREAM_STATUS.md', 'w') as f:
+              f.write('\n'.join(lines) + '\n')
+
+          print('UPSTREAM_STATUS.md written.')
+          PYEOF
+
+      - name: Commit and push status update
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add UPSTREAM_STATUS.md
+          if git diff --staged --quiet; then
+            echo "No changes to upstream status."
+          else
+            git commit -m "ci: update upstream status (${AXCIENT_DATE}) [skip ci]"
+            git push origin HEAD
+          fi

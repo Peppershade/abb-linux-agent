@@ -151,6 +151,12 @@ source/
   install.run                    # Place official 3.2.0-5053 installer here (gitignored)
 ```
 
+## Upstream status
+
+The `synosnap` module is based on [Axcient's elastio-snap](https://github.com/Axcient/elastio-snap).
+See [UPSTREAM.md](UPSTREAM.md) for the full context and [UPSTREAM_STATUS.md](UPSTREAM_STATUS.md)
+for a weekly-updated comparison of Axcient's latest vs what Synology ships.
+
 ## Disclaimer
 
 This project is **not affiliated with, endorsed by, or supported by Synology Inc.**
