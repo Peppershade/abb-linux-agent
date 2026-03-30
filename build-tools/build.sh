@@ -87,11 +87,15 @@ else
 fi
 
 # --- Locate the original DEBs ---
-ORIG_AGENT_DEB=$(find "$EXTRACTED" -maxdepth 1 -name "Synology Active Backup for Business Agent-3.2.0-*.deb" | head -1)
+ORIG_AGENT_DEB=$(find "$EXTRACTED" -maxdepth 1 -name "Synology Active Backup for Business Agent-*.deb" | head -1)
 ORIG_SYNOSNAP_DEB=$(find "$EXTRACTED" -maxdepth 1 -name "synosnap-*.deb" | head -1)
 
 [ -z "$ORIG_AGENT_DEB" ] && fail "Original agent DEB not found in $EXTRACTED"
 [ -z "$ORIG_SYNOSNAP_DEB" ] && fail "Original synosnap DEB not found in $EXTRACTED"
+
+# Verify it's the expected source version
+ORIG_AGENT_VER=$(basename "$ORIG_AGENT_DEB" | grep -oP '\d+\.\d+\.\d+-\d+')
+info "Source agent version: ${ORIG_AGENT_VER}"
 
 info "Original agent DEB: $(basename "$ORIG_AGENT_DEB")"
 info "Original synosnap DEB: $(basename "$ORIG_SYNOSNAP_DEB")"
