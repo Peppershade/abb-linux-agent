@@ -1,21 +1,17 @@
 > **WARNING:** This project is **not affiliated with, endorsed by, or supported by Synology Inc.**
 > No support is provided — use at your own risk.
 
-# Currently broken due to 3.2.0-5053
-Have to create new mappings for 6.14+, good news, 6.12/6.14 is now officially supported :)
-
-# Synology Active Backup for Business Agent — Kernel 6.12–6.18 Patches
+# Synology Active Backup for Business Agent — Kernel 6.15–6.18 Patches
 
 [![DKMS module build](https://github.com/Peppershade/abb-linux-agent-6.12/actions/workflows/test-dkms.yml/badge.svg)](https://github.com/Peppershade/abb-linux-agent-6.12/actions/workflows/test-dkms.yml)
 
-Synology has not updated the Active Backup for Business Linux agent since
-kernel 6.8. Their `synosnap` DKMS module fails to compile on 6.12 and later
-due to upstream kernel API changes — leaving users on modern distributions
-(Debian 13, Ubuntu 24.04 HWE, Ubuntu 25.04/25.10) unable to back up their
-machines. Rather than waiting indefinitely, this project patches the module
-source and repackages the installer so it works again.
+Synology's `3.2.0-5053` release officially added support up to kernel 6.14.
+Their `synosnap` DKMS module still fails to compile on 6.15 and later due to
+further upstream kernel API changes — leaving users on the latest distributions
+(Ubuntu 25.04/25.10) unable to back up their machines. This project patches the
+module source and repackages the installer so it works again.
 
-The version is bumped only slightly (`3.1.0-4969` over the official `3.1.0-4967`),
+The version is bumped only slightly (`3.2.0-5054` over the official `3.2.0-5053`),
 so when Synology eventually releases an official update with proper kernel
 support, ABB will automatically install their version over this one.
 
@@ -36,15 +32,31 @@ DKMS, just like the official installer.
 
 | Kernel | Distribution | Status |
 |--------|-------------|--------|
-| `6.8.0-100-generic` | Ubuntu 24.04 LTS | Verified |
-| `6.12.69+deb13-amd64` | Debian 13 | Verified |
-| `6.12.73+deb13-amd64` | Debian 13 | Verified |
-| `6.17.0-14-generic` | Ubuntu 25.10 | CI Tested |
+| `6.12.74+deb13+1-amd64` | Debian 13 | Verified |
+| `6.14.0-061400-generic` | Ubuntu mainline | CI Tested |
+| `6.15.0-061500-generic` | Ubuntu mainline | CI Tested |
+| `6.17.0-061700-generic` | Ubuntu mainline | CI Tested |
+| `6.17.0-19-generic` | Ubuntu 25.10 | Verified |
 | `6.18.0-061800-generic` | Ubuntu 25.10 | CI Tested |
 
 **Status legend:**
 - **Verified** — full install tested on real hardware; agent connected and backed up successfully
 - **CI Tested** — `synosnap` module compiled successfully against mainline kernel headers in GitHub Actions; not yet confirmed with a live install
+
+> **Note:** Kernels 6.12–6.13 are officially supported by Synology's `3.2.0-5053` release and are not tested here.
+
+## Secure Boot
+
+This installer is not compatible with Secure Boot. The `synosnap` DKMS module
+is not signed with a trusted key, so the kernel will refuse to load it on
+systems with Secure Boot enabled.
+
+**You must disable Secure Boot** in your firmware (UEFI) settings before
+installing, or enroll your own MOK key and sign the module manually after
+building.
+
+If you install with Secure Boot active, the module will build successfully but
+fail to load, and backups will not run.
 
 Running a kernel not listed here? Please
 [open an issue](https://github.com/Peppershade/abb-linux-agent-6.12/issues)
@@ -55,7 +67,7 @@ to report whether it works — this helps others and helps us track compatibilit
 If the DKMS module build fails or you need to remove it cleanly:
 
 ```bash
-sudo dpkg --remove synosnap 2>/dev/null; sudo dkms remove synosnap/0.11.7 --all 2>/dev/null; true
+sudo dpkg --remove synosnap 2>/dev/null; sudo dkms remove synosnap/0.12.11 --all 2>/dev/null; true
 ```
 
 ---
@@ -81,7 +93,7 @@ sudo apt install dpkg tar gzip perl
 
 ### Obtaining the original installer
 
-Download the official **Synology Active Backup for Business Agent 3.1.0-4967**
+Download the official **Synology Active Backup for Business Agent 3.2.0-5053**
 Linux installer (`.run` file) from the
 [Synology Download Center](https://www.synology.com/en-global/support/download).
 
@@ -101,57 +113,27 @@ This will:
 3. Repack the agent DEB with the updated version number
 4. Produce a new `install.run` in the current directory
 
-### Verifying the build
-
-```bash
-bash verify_build.sh [/path/to/install.run]
-```
-
-Checks that patched files, version numbers, and binary patches are all present.
-If no path is given, it defaults to `install.run` in the same directory as the script.
-
 ---
 
 ## What is patched
 
-The `synosnap` kernel module source (`/usr/src/synosnap-0.11.7/`) is updated
-to handle kernel API changes from **6.12 through 6.18**:
-
-### Kernel 6.12
-- `bdev_file_open_by_path()` replaces `bdev_open_by_path()` (new feature test)
-- `bdev_freeze()` / `bdev_thaw()` replace `freeze_bdev()` / `thaw_bdev()`
-- `BLK_STS_NEXUS` removal — `bdev_test_flag()` feature test added
-- `struct file` `fd_file()` accessor in `includes.h`
-- `ftrace_hooking.c` updated for 6.12 calling conventions
-- `genconfig.sh` rewritten for robust feature detection (`ccflags-y`, per-test
-  temp directories for kbuild compatibility)
-- Various other compile fixes across `blkdev.c`, `tracer.c`,
-  `bdev_state_handler.c`, `ioctl_handlers.c`, and `system_call_hooking.c`
-
-### Kernel 6.15+
-- `struct mnt_namespace` layout changes (`seq` → `seq_origin`, `mounts` wrapped
-  in anonymous struct, `mnt_ns_tree_node`/`mnt_ns_list`/`ns_lock` removed,
-  fsnotify fields added)
-- `struct mount` layout changes (`mnt_instance` removed, `mnt_node` in top union,
-  slave lists changed from `list_head` to `hlist_head`, new fields `mnt_t_flags`,
-  `mnt_id_unique`, `overmount`)
+The `synosnap` kernel module source (`/usr/src/synosnap-0.12.11/`) is based on
+Synology's `0.12.10` (from `3.2.0-5053`) and patched to handle kernel API
+changes from **6.15 through 6.18**:
 
 ### Kernel 6.17+
-- `BIO_THROTTLED` renamed to `BIO_QOS_THROTTLED` — compat define added
-- `submit_bio()` / `submit_bio_noacct()` return type changed to `void` —
-  `mrf.c` patched with conditional return handling
-- New feature tests: `bio_qos_throttled.c`, `submit_bio_noacct_void.c`
-- `EXTRA_CFLAGS` dropped by kbuild — feature test system updated to `ccflags-y`
+- `freeze_super()` / `thaw_super()` gained a third `owner` argument —
+  `freeze_super_3.c` feature test added, `main.c` updated with new call path
 
 ### Installer / packaging fixes
 - **Debian 12+ DKMS autoinstall** — the original `postinst` stripped
   `AUTOINSTALL="yes"` from `dkms.conf` on Debian 12+, causing DKMS to refuse
   to build the module. That block is now disabled during repackaging.
-- **Unloaded kernel fallback** — `genconfig.sh` previously hard-failed when
-  building for a kernel not currently running (e.g. after a kernel upgrade).
+- **Unloaded kernel fallback** — `genconfig.sh` hard-failed when building for
+  a kernel not currently running (e.g. after a kernel upgrade or in CI).
   It now falls back to `/proc/kallsyms` with a warning instead of aborting.
-- **synosnap version bump to 0.11.7** — forces reinstallation of the patched
-  module on machines that already had `0.11.6` installed.
+- **synosnap version bump to 0.12.11** — forces reinstallation of the patched
+  module on machines that already had `0.12.10` installed.
 
 ## Repository layout
 
@@ -159,11 +141,12 @@ to handle kernel API changes from **6.12 through 6.18**:
 build-tools/
   build.sh                       # Main build script
   patches/
-    variables.sh                 # Installer variable overrides (version 4969)
+    variables.sh                 # Installer variable overrides (version 5054)
     synosnap/                    # Patched kernel module sources
       configure-tests/
         feature-tests/           # Kernel feature detection tests
-verify_build.sh                  # Post-build verification
+source/
+  install.run                    # Place official 3.2.0-5053 installer here (gitignored)
 ```
 
 ## Disclaimer
@@ -184,6 +167,6 @@ Use at your own risk.
 ## License
 
 The patched source files are derived from Synology's original `synosnap` module
-(based on [dattobd](https://github.com/datto/dattobd)). The original code is
-licensed under the GPL v2. Patches in this repository are provided under the
-same license.
+(based on [elastio-snap](https://github.com/elastio/elastio-snap)). The original
+code is licensed under the GPL v2. Patches in this repository are provided under
+the same license.
