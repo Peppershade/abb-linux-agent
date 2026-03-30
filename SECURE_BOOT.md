@@ -1,8 +1,11 @@
 # Secure Boot Support
 
-> **Experimental** — This has not been widely tested. If it works or fails for
-> you, please [open an issue](https://github.com/Peppershade/abb-linux-agent/issues)
-> and report your distribution and kernel version.
+> **Experimental — No support provided. These instructions are untested and
+> may not work.** They are provided as-is based on the upstream Axcient guide,
+> without any verification against this project. Use at your own risk.
+> If it works or fails for you, please
+> [open an issue](https://github.com/Peppershade/abb-linux-agent/issues)
+> and report your distribution and kernel version — this helps others.
 
 The `synosnap` DKMS module can be made to work with UEFI Secure Boot by
 enrolling a Machine Owner Key (MOK) before installation. The approach is based
