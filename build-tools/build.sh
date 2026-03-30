@@ -121,15 +121,25 @@ if [ -f "$SNAP_SRC/dkms.conf" ]; then
     sed -i "s/^PACKAGE_VERSION=.*/PACKAGE_VERSION=\"${SYNOSNAP_VERSION}\"/" "$SNAP_SRC/dkms.conf"
 fi
 
-# Apply our patches (only the files we actually modified vs. the original)
-info "  Applying patches..."
-for f in genconfig.sh main.c; do
+# Copy all patched synosnap source files
+info "  Copying patched configure-tests..."
+for f in "$PATCHES_DIR/synosnap/configure-tests/feature-tests/"*; do
+    dest="$SNAP_SRC/configure-tests/feature-tests/$(basename "$f")"
+    sed 's/\r//' "$f" > "$dest"
+    chmod --reference="$f" "$dest" 2>/dev/null || true
+done
+sed 's/\r//' "$PATCHES_DIR/synosnap/configure-tests/config-tests" \
+    > "$SNAP_SRC/configure-tests/config-tests"
+sed 's/\r//' "$PATCHES_DIR/synosnap/configure-tests/symbol-tests" \
+    > "$SNAP_SRC/configure-tests/symbol-tests"
+
+info "  Copying patched source files..."
+for f in genconfig.sh includes.h main.c extract_mount_params.c extract_mount_params.h \
+         elastio-snap.h nl_debug.c nl_debug.h Makefile; do
     sed 's/\r//' "$PATCHES_DIR/synosnap/$f" > "$SNAP_SRC/$f"
     chmod --reference="$PATCHES_DIR/synosnap/$f" "$SNAP_SRC/$f" 2>/dev/null || true
     [[ "$f" == *.sh ]] && chmod +x "$SNAP_SRC/$f"
 done
-sed 's/\r//' "$PATCHES_DIR/synosnap/configure-tests/feature-tests/freeze_super_3.c" \
-    > "$SNAP_SRC/configure-tests/feature-tests/freeze_super_3.c"
 
 # Disable the Debian 12+ block in postinst that strips AUTOINSTALL="yes" from dkms.conf
 # (ABB #11026 — without AUTOINSTALL, DKMS refuses to build the module automatically)
