@@ -33,8 +33,6 @@ DKMS, just like the official installer.
 | Kernel | Distribution | Status |
 |--------|-------------|--------|
 | `6.8.0-100-generic` | Ubuntu 24.04 LTS | Verified |
-| `6.12.69+deb13-amd64` | Debian 13 | Verified |
-| `6.12.73+deb13-amd64` | Debian 13 | Verified |
 | `6.14.0-061400-generic` | Ubuntu mainline | CI Tested |
 | `6.15.0-061500-generic` | Ubuntu mainline | CI Tested |
 | `6.17.0-061700-generic` | Ubuntu mainline | CI Tested |
@@ -43,6 +41,21 @@ DKMS, just like the official installer.
 **Status legend:**
 - **Verified** — full install tested on real hardware; agent connected and backed up successfully
 - **CI Tested** — `synosnap` module compiled successfully against mainline kernel headers in GitHub Actions; not yet confirmed with a live install
+
+> **Note:** Kernels 6.12–6.13 are officially supported by Synology's `3.2.0-5053` release and are not tested here.
+
+## Secure Boot
+
+This installer is not compatible with Secure Boot. The `synosnap` DKMS module
+is not signed with a trusted key, so the kernel will refuse to load it on
+systems with Secure Boot enabled.
+
+**You must disable Secure Boot** in your firmware (UEFI) settings before
+installing, or enroll your own MOK key and sign the module manually after
+building.
+
+If you install with Secure Boot active, the module will build successfully but
+fail to load, and backups will not run.
 
 Running a kernel not listed here? Please
 [open an issue](https://github.com/Peppershade/abb-linux-agent-6.12/issues)
