@@ -4,6 +4,7 @@
 # Synology Active Backup for Business Agent — Kernel 6.15–7.0 Patches
 
 [![DKMS module build](https://github.com/Peppershade/abb-linux-agent/actions/workflows/test-dkms.yml/badge.svg)](https://github.com/Peppershade/abb-linux-agent/actions/workflows/test-dkms.yml)
+![GitHub Downloads](https://img.shields.io/github/downloads/Peppershade/abb-linux-agent/total)
 
 Synology's `3.2.0-5053` release officially added support up to kernel 6.14.
 Their `synosnap` DKMS module still fails to compile on 6.15 and later due to
