@@ -4834,7 +4834,10 @@ static int __tracer_transition_tracing(struct snap_device *dev, struct block_dev
 		LOG_DEBUG("freezing '%s'", bdev_name);
 
 #ifdef HAVE_FREEZE_SUPER_3
-		ret = freeze_super(origsb, FREEZE_HOLDER_KERNEL, NULL);
+		if (origsb->s_op->freeze_super)
+			ret = origsb->s_op->freeze_super(origsb, FREEZE_HOLDER_KERNEL, NULL);
+		else
+			ret = freeze_super(origsb, FREEZE_HOLDER_KERNEL, NULL);
 #elif defined HAVE_FREEZE_SUPER_2
 		if (origsb->s_op->freeze_super)
 			ret = origsb->s_op->freeze_super(origsb, FREEZE_HOLDER_KERNEL);
@@ -4908,7 +4911,10 @@ static int __tracer_transition_tracing(struct snap_device *dev, struct block_dev
 		//thaw the block device
 		LOG_DEBUG("thawing '%s'", bdev_name);
 #ifdef HAVE_FREEZE_SUPER_3
-		ret = thaw_super(origsb, FREEZE_HOLDER_KERNEL, NULL);
+		if (origsb->s_op->thaw_super)
+			ret = origsb->s_op->thaw_super(origsb, FREEZE_HOLDER_KERNEL, NULL);
+		else
+			ret = thaw_super(origsb, FREEZE_HOLDER_KERNEL, NULL);
 #elif defined HAVE_FREEZE_SUPER_2
 		if (origsb->s_op->thaw_super)
 			ret = origsb->s_op->thaw_super(origsb, FREEZE_HOLDER_KERNEL);
